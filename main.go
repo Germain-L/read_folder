@@ -1,85 +1,87 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 func main() {
-	// Get the command line arguments
-	var ignoreFlag string
-	flag.StringVar(&ignoreFlag, "ignore", "", "comma-separated list of files or folders to ignore")
-	flag.Parse()
+	// Get command line arguments
+	var folderPath string
+	var ignoreFolders []string
+	var ignoreFiles []string
+	var ignoreFileTypes []string
 
-	if flag.NArg() < 1 {
-		fmt.Println("Usage: go run script.go [-ignore folder1,file2,...] folder_to_search")
-		os.Exit(1)
+	// Check if arguments exist
+	if len(os.Args) > 1 {
+		folderPath = os.Args[1]
+
+		// Check for optional arguments
+		for i := 2; i < len(os.Args); i++ {
+			arg := os.Args[i]
+
+			switch arg {
+			case "--ignore-folder":
+				if i+1 < len(os.Args) {
+					ignoreFolders = strings.Split(os.Args[i+1], ",")
+				}
+			case "--ignore-file":
+				if i+1 < len(os.Args) {
+					ignoreFiles = strings.Split(os.Args[i+1], ",")
+				}
+			case "--ignore-filetype":
+				if i+1 < len(os.Args) {
+					ignoreFileTypes = strings.Split(os.Args[i+1], ",")
+				}
+			}
+		}
 	}
 
-	// The first argument is the folder to look at
-	folder := flag.Arg(0)
-
-	// The remaining arguments are files or folders to ignore
-	var ignores []string
-	if ignoreFlag != "" {
-		ignores = strings.Split(strings.TrimSpace(ignoreFlag), ",")
-	}
-	fmt.Println("ignoreFlag:", ignoreFlag)
-	fmt.Println("ignores:", ignores)
-
-	// Walk through all files in the folder, including subfolders
-	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
+	// Walk through directory tree
+	err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
+		// Check for errors
 		if err != nil {
-			fmt.Println(err)
 			return err
 		}
 
-		// Ignore directories and files in the ignore list
-		if info.IsDir() || shouldIgnore(path, ignores) {
-			return nil
+		// Check if folder should be ignored
+		for _, folder := range ignoreFolders {
+			if info.IsDir() && info.Name() == folder {
+				return filepath.SkipDir
+			}
 		}
 
-		file, err := os.Open(path)
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		defer file.Close()
-
-		contents, err := io.ReadAll(file)
-		if err != nil {
-			fmt.Println(err)
-			return err
+		// Check if file should be ignored
+		for _, file := range ignoreFiles {
+			if !info.IsDir() && info.Name() == file {
+				return nil
+			}
 		}
 
-		// Print the file's contents with markdown formatting and file extension
-		ext := strings.TrimLeft(filepath.Ext(path), ".")
-		fmt.Printf("## `%s`\n\n```%s\n%s\n```\n\n", info.Name(), ext, string(contents))
+		// Check if file extension should be ignored
+		for _, extension := range ignoreFileTypes {
+			if !info.IsDir() && filepath.Ext(info.Name()) == extension {
+				return nil
+			}
+		}
+
+		// Display file contents
+		if !info.IsDir() {
+			data, err := ioutil.ReadFile(path)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Printf("```go\n%s\n```\n\n", string(data))
+			}
+		}
 
 		return nil
 	})
 
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
 	}
-}
-
-// Helper function to check if a file or directory should be ignored
-func shouldIgnore(path string, ignores []string) bool {
-	fileName := filepath.Base(path)
-	directory := filepath.Dir(path)
-
-	// path looks like this : venv/no.txt
-	// we need to split it and check if any of the items has a match in ignores
-	for _, ignore := range ignores {
-		if fileName == ignore || directory == ignore {
-			return true
-		}
-	}
-	return false
 }
