@@ -46,6 +46,11 @@ func main() {
 			return err
 		}
 
+		// always skip .git folder
+		if strings.Contains(path, ".git") && info.IsDir() {
+			return filepath.SkipDir
+		}
+
 		// Check if folder should be ignored
 		for _, folder := range ignoreFolders {
 			if info.IsDir() && info.Name() == folder {
@@ -73,7 +78,13 @@ func main() {
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				fmt.Printf("```go\n%s\n```\n\n", string(data))
+				fileExt := filepath.Ext(info.Name())
+				if len(fileExt) > 0 {
+					fileExt = fileExt[1:]
+				} else {
+					fileExt = "txt"
+				}
+				fmt.Printf("```%s\n%s\n```\n\n", fileExt, string(data))
 			}
 		}
 
