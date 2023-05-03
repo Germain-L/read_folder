@@ -7,6 +7,15 @@ import (
 	"strings"
 )
 
+func printHelp() {
+	fmt.Println("Usage: go run main.go <folderPath> [options]")
+	fmt.Println("\nOptions:")
+	fmt.Println("  --ignore-folder <folder1,folder2,...>    Ignore specified folders (comma-separated)")
+	fmt.Println("  --ignore-file <file1,file2,...>          Ignore specified files (comma-separated)")
+	fmt.Println("  --ignore-filetype <ext1,ext2,...>        Ignore specified file extensions (comma-separated)")
+	fmt.Println("  --help                                   Show this help message")
+}
+
 func main() {
 	// Get command line arguments
 	var folderPath string
@@ -16,6 +25,14 @@ func main() {
 
 	// Check if arguments exist
 	if len(os.Args) > 1 {
+		// Check for help argument
+		for _, arg := range os.Args {
+			if arg == "--help" {
+				printHelp()
+				return
+			}
+		}
+
 		folderPath = os.Args[1]
 
 		// Check for optional arguments
@@ -37,6 +54,9 @@ func main() {
 				}
 			}
 		}
+	} else {
+		printHelp()
+		return
 	}
 
 	// Walk through directory tree
